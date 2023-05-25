@@ -6,11 +6,16 @@ const App = () => {
 
   const [countries, setCountries] = useState([])
   const [searchWord, setSearchWord] = useState('')
-  const [weatherLocation, setWeatherLocation] = useState(null)
+  const [capital, setCapital] = useState(null)
+  const [countryCode, setCountryCode] = useState(null)
+  const [locationInformation, setLocationInformation] = useState([])
+  const [latitude, setLatitude] = useState(null)
+  const [longitude, setLongitude] = useState(null)
   const [weatherInformation, setWeatherInformation] = useState([])
 
   const api_key = process.env.REACT_APP_API_KEY
 
+  // Gets the country data
   useEffect(() => {
     axios
       .get('https://studies.cs.helsinki.fi/restcountries/api/all')
@@ -19,17 +24,32 @@ const App = () => {
       })
   }, [searchWord])
 
+  // Gets the coordinates of the country's capital
   useEffect(() => {
-      if (weatherLocation !== null)
-      axios
-        .get(`https://api.openweathermap.org/data/2.5/weather?q=${weatherLocation}&appid=${api_key}`)
-        .then(response => {
-          if (response.data) {
-            setWeatherInformation(response.data)
-          }
-        })
-  }, [weatherLocation, api_key])
+      if (capital !== null && countryCode !== null) {
+        axios
+          .get(`http://api.openweathermap.org/geo/1.0/direct?q=${capital},${countryCode}&appid=${api_key}`)
+          .then(response => {
+            if (response.data) {
+              setLocationInformation(response.data)
+            }
+          })
+      }
+  }, [capital, countryCode, api_key])
 
+
+   // Gets the actual weather information of the capital (by using the coordinates)
+  useEffect(() => {
+      if (latitude !== null && longitude !== null) {
+        axios
+          .get(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${api_key}`)
+          .then(response => {
+            if (response.data) {
+              setWeatherInformation(response.data)
+            }
+          })
+        }
+  }, [latitude, longitude, api_key])
 
 
   const handleSearchWordChange = (event) => {
@@ -37,28 +57,37 @@ const App = () => {
   }
 
 
-  const weatherPreparation = (location) => {
+  const defineTargetLocation = (city, countryCode) => {
     setTimeout(() =>{
-      setWeatherLocation(location)
+      setCapital(city)
+      setCountryCode(countryCode)
     }, 100)
   }
 
+  const defineWeatherInformation = () => {
+    if (locationInformation.length !== 0) {
+      setTimeout(() => {
+        setLatitude(locationInformation[0].lat)
+        setLongitude(locationInformation[0].lon)
+      }, 100)
+    }
+  }
 
   const showWeather = () => {
     if (weatherInformation.length !== 0) {
       return(
         <>
-          <h1>Weather in {weatherInformation.name}</h1>
+          <h1>Weather in {capital}</h1>
           <p>Temperature {(weatherInformation.main.temp - 273.15).toFixed(1)} Celsius</p>
           <img 
             src={`https://openweathermap.org/img/wn/${weatherInformation.weather[0].icon}@2x.png`}
             alt={weatherInformation.weather[0].description}
           />
-          <p>Wind {(weatherInformation.wind.speed).toFixed(1)} m/s</p>
+          <p>Wind {(weatherInformation.wind.speed.toFixed(1))} m/s</p>
         </>
       )
     } else {
-      return null
+        return null
     }
   }
 
@@ -100,8 +129,9 @@ const App = () => {
                   })}
                 </ul>
                 <img src={country.flags.png} alt={country.flags.alt}></img>
-                {weatherPreparation(country.capital)}
-                {showWeather()}              
+                {defineTargetLocation(country.capital[0], country.cca2)}
+                {defineWeatherInformation()}
+                {showWeather()}
               </div>
             )
           })
